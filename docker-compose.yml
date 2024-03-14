@@ -1,0 +1,74 @@
+services:
+    mysql:
+        container_name: mysql
+        restart: always
+        image: mysql
+        command: --default-authentication-plugin=mysql_native_password
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+        ports:
+            - 3306:3306
+        volumes:
+            - ./.docker/volumes/mysql:/var/lib/mysql
+
+    traefik:
+        container_name: traefik
+        restart: always
+        image: traefik
+        command:
+            #- "--log.level=DEBUG"
+            - "--log.level=INFO"
+            - "--api.insecure=true"
+            - "--providers.docker=true"
+            - "--providers.docker.exposedbydefault=false"
+            - "--entrypoints.web.address=:80"
+        ports:
+            - "80:80"
+            #- "8080:8080"
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock:ro"
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.traefik-api.rule=Host(`traefik.localhost`)
+            - traefik.http.routers.traefik-api.service=api@internal
+        networks:
+            # Attach the traefik container to the default network (which is the global "gateway" network)
+            - default
+
+    maildebug:
+        container_name: maildebug
+        image: bazo/maildebug
+        restart: always
+        depends_on: [traefik]
+        ports:
+            - 1025:1025
+        volumes:
+            - ./.docker/volumes/maildebug:/data
+        labels:
+            - traefik.enable=true
+            - traefik.port=8100
+            - traefik.http.routers.maildebug.rule=Host(`maildebug.localhost`)
+            - traefik.http.routers.maildebug.entrypoints=web
+            - traefik.http.services.maildebug.loadbalancer.server.port=8100
+
+    var-dumper-server:
+        container_name: var-dumper-server
+        image: bazo/var-dumper-server
+        restart: always
+        depends_on: [traefik]
+        ports:
+            - 9912:9912
+            #- 9900:9900
+        volumes:
+            - ./.docker/volumes/var-dumps:/server/db
+        labels:
+            - traefik.enable=true
+            - traefik.port=9900
+            - traefik.http.routers.var-dumper-server.rule=Host(`vardumps.localhost`)
+            - traefik.http.routers.var-dumper-server.entrypoints=web
+            - traefik.http.services.var-dumper-server.loadbalancer.server.port=9900
+
+networks:
+    default:
+        name: gateway
+        external: true
