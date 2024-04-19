@@ -68,6 +68,13 @@ services:
             - traefik.http.routers.var-dumper-server.entrypoints=web
             - traefik.http.services.var-dumper-server.loadbalancer.server.port=9900
 
+    mongo:
+        image: mongo
+        restart: always
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: root
+
 networks:
     default:
         name: gateway
