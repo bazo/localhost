@@ -78,7 +78,7 @@ services:
             - ./.docker/volumes/mongo:/data/db
 
     redis:
-        container_name: redis_global
+        container_name: redis-global
         image: redis:alpine
         restart: always
         ports:
