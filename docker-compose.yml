@@ -69,11 +69,19 @@ services:
             - traefik.http.services.var-dumper-server.loadbalancer.server.port=9900
 
     mongo:
+        container_name: mongo
         image: mongo
         restart: always
-        environment:
-            MONGO_INITDB_ROOT_USERNAME: root
-            MONGO_INITDB_ROOT_PASSWORD: root
+        ports:
+          - 27017:27017
+
+    redis:
+        container_name: redis_global
+        image: redis:alpine
+        restart: always
+        ports:
+          - 6379:6379
+          - 6500:6379
 
 networks:
     default:
