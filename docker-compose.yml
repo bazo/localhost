@@ -2,7 +2,7 @@ services:
     mysql:
         container_name: mysql
         restart: always
-        image: mysql
+        image: mysql:8.3
         command: --default-authentication-plugin=mysql_native_password
         environment:
             MYSQL_ROOT_PASSWORD: root
@@ -92,6 +92,9 @@ services:
         container_name: rabbitmq
         image: rabbitmq:management-alpine
         restart: always
+        environment:
+            RABBITMQ_NODENAME: rabbit@localhost
+            NODENAME: rabbit@localhost
         ports:
             - 5672:5672
             - 15672:15672
