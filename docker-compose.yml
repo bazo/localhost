@@ -1,6 +1,6 @@
 services:
     mysql:
-        container_name: mysql
+        container_name: mysql-global
         restart: always
         image: mysql:8.3
         command: --default-authentication-plugin=mysql_native_password
@@ -13,9 +13,9 @@ services:
             - /Users/bazo/apps/eyeball/db-dumps:/dumps
 
     traefik:
-        container_name: traefik
+        container_name: traefik-global
         restart: always
-        image: traefik
+        image: traefik:v3.3
         command:
             #- "--log.level=DEBUG"
             - "--log.level=INFO"
@@ -37,7 +37,7 @@ services:
             - default
 
     maildebug:
-        container_name: maildebug
+        container_name: maildebug-global
         image: bazo/maildebug
         restart: always
         depends_on: [traefik]
@@ -53,7 +53,7 @@ services:
             - traefik.http.services.maildebug.loadbalancer.server.port=8100
 
     var-dumper-server:
-        container_name: var-dumper-server
+        container_name: var-dumper-server-global
         image: bazo/var-dumper-server
         restart: always
         depends_on: [traefik]
@@ -69,18 +69,18 @@ services:
             - traefik.http.routers.var-dumper-server.entrypoints=web
             - traefik.http.services.var-dumper-server.loadbalancer.server.port=9900
 
-    mongo:
-        container_name: mongo
-        image: mongo
-        restart: always
-        ports:
-            - 27017:27017
-        volumes:
-            - ./.docker/volumes/mongo:/data/db
+    # mongo:
+    #     container_name: mongo
+    #     image: mongo
+    #     restart: always
+    #     ports:
+    #         - 27017:27017
+    #     volumes:
+    #         - ./.docker/volumes/mongo:/data/db
 
     redis:
         container_name: redis-global
-        image: redis:alpine
+        image: redis:7.4-alpine
         restart: always
         ports:
             - 6379:6379
@@ -89,9 +89,10 @@ services:
             - ./.docker/volumes/redis:/data
 
     rabbitmq:
-        container_name: rabbitmq
-        image: rabbitmq:management-alpine
+        container_name: rabbitmq-global
+        image: rabbitmq:4-management-alpine
         restart: always
+        entrypoint: ["/bin/sh", "-c", "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server"]
         environment:
             RABBITMQ_NODENAME: rabbit@localhost
             NODENAME: rabbit@localhost
