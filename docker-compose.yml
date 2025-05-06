@@ -92,7 +92,12 @@ services:
         container_name: rabbitmq-global
         image: rabbitmq:4-management-alpine
         restart: always
-        entrypoint: ["/bin/sh", "-c", "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server"]
+        entrypoint:
+            [
+                "/bin/sh",
+                "-c",
+                "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server",
+            ]
         environment:
             RABBITMQ_NODENAME: rabbit@localhost
             NODENAME: rabbit@localhost
@@ -101,6 +106,29 @@ services:
             - 15672:15672
         volumes:
             - ./.docker/volumes/rabbitmq:/var/lib/rabbitmq
+
+    minio:
+        container_name: minio-global
+        image: minio/minio
+        restart: always
+        command: server /data --console-address ":9001"
+        environment:
+            MINIO_ROOT_USER: root
+            MINIO_ROOT_PASSWORD: rootroot
+        volumes:
+            - ./.docker/volumes/minio:/data # 👈 Persist data in host folder
+        labels:
+            - "traefik.enable=true"
+
+            # API on http://minio.localhost
+            - "traefik.http.routers.minio.rule=Host(`minio.localhost`)"
+            - "traefik.http.routers.minio.entrypoints=web"
+            - "traefik.http.services.minio.loadbalancer.server.port=9000"
+
+            # Console on http://minio-console.localhost
+            - "traefik.http.routers.minio-console.rule=Host(`minio-console.localhost`)"
+            - "traefik.http.routers.minio-console.entrypoints=web"
+            - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
 
 networks:
     default:
