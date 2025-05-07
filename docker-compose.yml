@@ -51,6 +51,9 @@ services:
             - traefik.http.routers.maildebug.rule=Host(`maildebug.localhost`)
             - traefik.http.routers.maildebug.entrypoints=web
             - traefik.http.services.maildebug.loadbalancer.server.port=8100
+        networks:
+            # Attach the traefik container to the default network (which is the global "gateway" network)
+            - default
 
     var-dumper-server:
         container_name: var-dumper-server-global
@@ -115,20 +118,28 @@ services:
         environment:
             MINIO_ROOT_USER: root
             MINIO_ROOT_PASSWORD: rootroot
+            MINIO_BROWSER_REDIRECT_URL: http://minio-console.localhost
+            MINIO_DOMAIN: minio.localhost
         volumes:
             - ./.docker/volumes/minio:/data # 👈 Persist data in host folder
         labels:
-            - "traefik.enable=true"
+            - traefik.enable=true
 
             # API on http://minio.localhost
-            - "traefik.http.routers.minio.rule=Host(`minio.localhost`)"
-            - "traefik.http.routers.minio.entrypoints=web"
-            - "traefik.http.services.minio.loadbalancer.server.port=9000"
+            - traefik.http.routers.minio.rule=Host(`minio.localhost`) || Host(`uploads.minio.localhost`)
+            - traefik.http.routers.minio.entrypoints=web
+            - traefik.http.services.minio.loadbalancer.server.port=9000
+            - traefik.http.routers.minio.service=minio
 
-            # Console on http://minio-console.localhost
-            - "traefik.http.routers.minio-console.rule=Host(`minio-console.localhost`)"
-            - "traefik.http.routers.minio-console.entrypoints=web"
-            - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+            # # Console on http://minio-console.localhost
+            - traefik.http.routers.minio-console.rule=Host(`minio-console.localhost`)
+            - traefik.http.routers.minio-console.entrypoints=web
+            - traefik.http.services.minio-console.loadbalancer.server.port=9001
+            - traefik.http.routers.minio-console.service=minio-console
+
+        networks:
+            # Attach the traefik container to the default network (which is the global "gateway" network)
+            - default
 
 networks:
     default:
