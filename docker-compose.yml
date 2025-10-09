@@ -30,7 +30,7 @@ services:
     traefik:
         container_name: traefik-global
         restart: always
-        image: traefik:v3.3
+        image: traefik
         command:
             #- "--log.level=DEBUG"
             - "--log.level=INFO"
@@ -97,7 +97,7 @@ services:
 
     redis:
         container_name: redis-global
-        image: redis:7.4-alpine
+        image: redis:alpine
         restart: always
         ports:
             - 6379:6379
