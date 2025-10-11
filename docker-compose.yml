@@ -1,6 +1,6 @@
 services:
     mysql:
-        container_name: mysql-global
+        container_name: mysql
         restart: always
         image: mysql:8.3
         command: --default-authentication-plugin=mysql_native_password --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL
@@ -10,28 +10,28 @@ services:
             - 3306:3306
         volumes:
             - ./.docker/volumes/mysql:/var/lib/mysql
-            - /tmp/mysql.sock:/var/lib/mysql/mysql.sock
+            #- /tmp/mysql.sock:/var/lib/mysql/mysql.sock
             - /Users/bazo/apps/eyeball/db-dumps:/dumps
         networks:
             - default
 
-    postgres:
-        image: postgres
-        container_name: postgres-global
-        restart: always
-        environment:
-            #POSTGRES_DB: mydb
-            #POSTGRES_USER: root
-            POSTGRES_PASSWORD: root
-        ports:
-            - 5432:5432
-        volumes:
-            - ./.docker/volumes/postgres:/var/lib/postgresql
-        networks:
-            - default
+    # postgres:
+    #     image: postgres
+    #     container_name: postgres
+    #     restart: always
+    #     environment:
+    #         #POSTGRES_DB: mydb
+    #         #POSTGRES_USER: root
+    #         POSTGRES_PASSWORD: root
+    #     ports:
+    #         - 5432:5432
+    #     volumes:
+    #         - ./.docker/volumes/postgres:/var/lib/postgresql
+    #     networks:
+    #         - default
 
     traefik:
-        container_name: traefik-global
+        container_name: traefik
         restart: always
         image: traefik
         command:
@@ -58,7 +58,7 @@ services:
             - default
 
     maildebug:
-        container_name: maildebug-global
+        container_name: maildebug
         image: bazo/maildebug
         restart: always
         depends_on: [traefik]
@@ -77,7 +77,7 @@ services:
 
     var-dumper-server:
         profiles: ["extended"]
-        container_name: var-dumper-server-global
+        container_name: var-dumper-server
         image: bazo/var-dumper-server
         restart: always
         depends_on: [traefik]
@@ -102,8 +102,42 @@ services:
     #     volumes:
     #         - ./.docker/volumes/mongo:/data/db
 
+    # debezium-server:
+    #     image: quay.io/debezium/server:3.3.0.Final
+    #     container_name: debezium-server
+    #     environment:
+    #         # zdroj (source connector)
+    #         DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
+    #         DEBEZIUM_SOURCE_DATABASE_HOSTNAME: mysql-global
+    #         DEBEZIUM_SOURCE_DATABASE_PORT: 3306
+    #         DEBEZIUM_SOURCE_DATABASE_USER: root
+    #         DEBEZIUM_SOURCE_DATABASE_PASSWORD: root
+    #         DEBEZIUM_SOURCE_DATABASE_SERVER_ID: 184054
+    #         DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: forclimb
+    #         DEBEZIUM_SOURCE_DATABASE_INCLUDE_LIST: forclimb_presta
+    #         DEBEZIUM_SOURCE_INCLUDE_SCHEMA_CHANGES: "false"
+
+    #         # cieľový výstup
+    #         DEBEZIUM_SINK_TYPE: file
+    #         DEBEZIUM_SINK_FILE_FILENAME: /out/forclimb_changes.sql
+
+    #         # konverzia do SQL
+    #         DEBEZIUM_FORMAT_KEY_FIELDS: id
+    #         DEBEZIUM_FORMAT_VALUE: io.debezium.server.format.sql.SqlChangeEventOutputWriter
+
+    #         # flush interval (sekundy)
+    #         DEBEZIUM_FILE_FLUSH_INTERVAL_MS: 5000
+    #         DEBEZIUM_LOGGING_LEVEL: INFO
+    #     volumes:
+    #         - ./.docker/volumes/debezium:/out
+    #         #- ./.docker/containers/debezium/config:/debezium/conf
+    #     extra_hosts:
+    #         host.docker.internal: host-gateway
+    #     networks:
+    #         - default
+
     redis:
-        container_name: redis-global
+        container_name: redis
         image: redis:alpine
         restart: always
         ports:
@@ -113,7 +147,7 @@ services:
 
     rabbitmq:
         profiles: ["extended"]
-        container_name: rabbitmq-global
+        container_name: rabbitmq
         image: rabbitmq:4-management-alpine
         restart: always
         entrypoint:
@@ -133,7 +167,7 @@ services:
 
     minio:
         profiles: ["extended"]
-        container_name: minio-global
+        container_name: minio
         image: minio/minio
         restart: always
         command: server /data --console-address ":9001"
@@ -163,43 +197,6 @@ services:
             # Attach the traefik container to the default network (which is the global "gateway" network)
             - default
 
-    # n8n:
-    #     #profiles: ["extended"]
-    #     container_name: n8n-global
-    #     image: docker.n8n.io/n8nio/n8n
-    #     ports:
-    #         - "127.0.0.1:5678:5678"
-    #     labels:
-    #         - traefik.enable=true
-    #         - traefik.http.routers.n8n.rule=Host(`n8n.localhost`)
-    #         #- traefik.http.routers.n8n.tls=true
-    #         - traefik.http.routers.n8n.entrypoints=web
-    #         #- "traefik.http.routers.n8n.rule=PathPrefix(`/${SUBFOLDER}{regex:$$|/.*}`)"
-    #         #- "traefik.http.middlewares.n8n-stripprefix.stripprefix.prefixes=/${SUBFOLDER}"
-    #         #- "traefik.http.routers.n8n.middlewares=n8n-stripprefix"
-    #         # - traefik.http.routers.n8n.tls.certresolver=mytlschallenge
-    #         # - traefik.http.middlewares.n8n.headers.SSLRedirect=true
-    #         # - traefik.http.middlewares.n8n.headers.STSSeconds=315360000
-    #         # - traefik.http.middlewares.n8n.headers.browserXSSFilter=true
-    #         # - traefik.http.middlewares.n8n.headers.contentTypeNosniff=true
-    #         # - traefik.http.middlewares.n8n.headers.forceSTSHeader=true
-    #         # - traefik.http.middlewares.n8n.headers.SSLHost=${DOMAIN_NAME}
-    #         # - traefik.http.middlewares.n8n.headers.STSIncludeSubdomains=true
-    #         # - traefik.http.middlewares.n8n.headers.STSPreload=true
-    #     environment:
-    #         - N8N_HOST=n8n.localhost
-    #         - N8N_PORT=5678
-    #         - N8N_PROTOCOL=http
-    #         #- NODE_ENV=production
-    #         - N8N_PATH
-    #         - WEBHOOK_URL=http://n8n.localhost
-    #         - N8N_SECURE_COOKIE=false
-    #     volumes:
-    #         - ./.docker/volumes/n8n:/home/node/.n8n
-    #     networks:
-    #         # Attach the traefik container to the default network (which is the global "gateway" network)
-    #         - default
-
     # oracle-db:
     #     image: container-registry.oracle.com/database/free:latest
     #     container_name: oracle-db
@@ -218,8 +215,6 @@ services:
 
     portainer:
         image: portainer/portainer-ce:latest
-        ports:
-            - "9000:9000"
         volumes:
             - ./.docker/volumes/portainer:/data
             # nepovinne: lokálny docker socket ak chceš spravovať aj lokálny docker
@@ -229,8 +224,103 @@ services:
             - traefik.enable=true
             - traefik.http.routers.portainer.rule=Host(`portainer.localhost`)
             - traefik.http.routers.portainer.entrypoints=web
+            - traefik.http.services.portainer.loadbalancer.server.port=9000
+            - traefik.http.routers.portainer.service=portainer
         networks:
-            # Attach the traefik container to the default network (which is the global "gateway" network)
+            - default
+
+    zookeeper:
+        profiles: ["kafka"]
+        image: zookeeper
+        container_name: zookeeper
+        # ports:
+        #     - 2181:2181
+        labels:
+            - traefik.enable=false
+        networks:
+            - default
+
+    kafka:
+        profiles: ["kafka"]
+        #image: quay.io/debezium/kafka:3.3.0.Final
+        build:
+            context: ./.docker/containers/kafka
+            args:
+                UID: ${UID}
+        container_name: kafka
+        expose:
+            - 9092
+        # ports:
+        #     - 9092:9092
+        environment:
+            ZOOKEEPER_CONNECT: zookeeper:2181
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+            KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS: 60000
+            KAFKA_QUEUED_MAX_REQUESTS: 500
+            KAFKA_NUM_NETWORK_THREADS: 8
+            KAFKA_NUM_IO_THREADS: 8
+            KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+            KAFKA_HEARTBEAT_INTERVAL_MS: 3000
+            KAFKA_SESSION_TIMEOUT_MS: 45000
+        volumes:
+            - ./.docker/containers/kafka/create-topics.sh:/kafka/create-topics.sh
+            - ./.docker/volumes/kafka/data:/kafka/data
+            - ./.docker/volumes/kafka/logs:/kafka/logs
+        networks:
+            - default
+
+    connect:
+        profiles: ["kafka"]
+        #image: quay.io/debezium/connect:3.3.0.Final
+        build:
+            context: ./.docker/containers/connect
+            args:
+                UID: ${UID}
+        container_name: connect
+        ports:
+            - 8083:8083
+        environment:
+            - BOOTSTRAP_SERVERS=kafka:9092
+            - GROUP_ID=1
+            - CONFIG_STORAGE_TOPIC=my_connect_configs
+            - OFFSET_STORAGE_TOPIC=my_connect_offsets
+            - STATUS_STORAGE_TOPIC=my_connect_statuses
+            - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+            - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+            - VALUE_CONVERTER_SCHEMAS_ENABLE=false
+            - KEY_CONVERTER_SCHEMAS_ENABLE=false
+            - PLUGIN_PATH=/kafka/connect
+
+            - CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS=3000
+            - CONNECT_CONSUMER_SESSION_TIMEOUT_MS=45000
+            - LOG4J_CONFIGURATION_FILE=/kafka/config/connect-log4j2.yaml
+        volumes:
+            - ./.docker/volumes/kafka-connect:/data
+            - ./.docker/volumes/kafka/data:/kafka/data
+            - ./.docker/volumes/kafka/logs:/kafka/logs
+            - ./.docker/containers/connect/connect-log4j2.yaml:/kafka/config/connect-log4j2.yaml
+        depends_on:
+            - kafka
+        networks:
+            - default
+
+    kafka-ui:
+        profiles: ["kafka"]
+        image: provectuslabs/kafka-ui:latest
+        container_name: kafka-ui
+        environment:
+            KAFKA_CLUSTERS_0_NAME: local
+            KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+            KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.kafka-ui.rule=Host(`kafka-ui.localhost`)
+            - traefik.http.routers.kafka-ui.entrypoints=web
+            - traefik.http.routers.kafka-ui.service=kafka-ui
+            - traefik.http.services.kafka-ui.loadbalancer.server.port=8080
+        networks:
             - default
 
 networks:
