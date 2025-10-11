@@ -220,8 +220,6 @@ services:
         container_name: kafka
         expose:
             - 9092
-        # ports:
-        #     - 9092:9092
         environment:
             ZOOKEEPER_CONNECT: zookeeper:2181
             KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
