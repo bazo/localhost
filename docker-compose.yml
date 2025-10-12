@@ -203,6 +203,7 @@ services:
         #profiles: ["kafka"]
         image: zookeeper
         container_name: zookeeper
+        restart: unless-stopped
         # ports:
         #     - 2181:2181
         labels:
@@ -218,6 +219,9 @@ services:
             args:
                 UID: ${UID}
         container_name: kafka
+        restart: unless-stopped
+        depends_on:
+            - zookeeper
         expose:
             - 9092
         environment:
@@ -247,6 +251,10 @@ services:
             args:
                 UID: ${UID}
         container_name: connect
+        restart: unless-stopped
+        depends_on:
+            - kafka
+            - mysql
         ports:
             - 8083:8083
         environment:
@@ -266,11 +274,10 @@ services:
             - LOG4J_CONFIGURATION_FILE=/kafka/config/connect-log4j2.yaml
         volumes:
             - ./.docker/volumes/kafka-connect:/data
+            - ./.docker/volumes/kafka-connect/storage:/kafka/connect/storage/
             - ./.docker/volumes/kafka/data:/kafka/data
             - ./.docker/volumes/kafka/logs:/kafka/logs
             - ./.docker/containers/connect/connect-log4j2.yaml:/kafka/config/connect-log4j2.yaml
-        depends_on:
-            - kafka
         networks:
             - default
 
@@ -278,6 +285,9 @@ services:
         #profiles: ["kafka"]
         image: provectuslabs/kafka-ui:latest
         container_name: kafka-ui
+        restart: unless-stopped
+        depends_on:
+            - kafka
         environment:
             KAFKA_CLUSTERS_0_NAME: local
             KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -290,6 +300,48 @@ services:
             - traefik.http.services.kafka-ui.loadbalancer.server.port=8080
         networks:
             - default
+
+    # debezium-server:
+    #     image: quay.io/debezium/server:3.3.0.Final
+    #     container_name: debezium-server
+    #     environment:
+    #         # Source MySQL
+    #         # DEBEZIUM_SOURCE_CONNECTOR_CLASS: io.debezium.connector.mysql.MySqlConnector
+    #         # DEBEZIUM_SOURCE_DATABASE_HOSTNAME: mysql
+    #         # DEBEZIUM_SOURCE_DATABASE_PORT: 3306
+    #         # DEBEZIUM_SOURCE_DATABASE_USER: root
+    #         # DEBEZIUM_SOURCE_DATABASE_PASSWORD: root
+    #         # DEBEZIUM_SOURCE_DATABASE_SERVER_ID: 184054
+    #         # DEBEZIUM_SOURCE_DATABASE_SERVER_NAME: forclimb
+    #         # DEBEZIUM_SOURCE_DATABASE_INCLUDE_LIST: forclimb_presta
+    #         # DEBEZIUM_SOURCE_INCLUDE_SCHEMA_CHANGES: "false"
+
+    #         # --- SOURCE: Kafka ---
+    #         DEBEZIUM_SOURCE_TYPE: kafka
+    #         DEBEZIUM_SOURCE_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    #         # vyber topic(y) – regex; napr. všetko s prefixom "forclimb."
+    #         DEBEZIUM_SOURCE_KAFKA_TOPIC_REGEX: forclimb\..*
+    #         # vlastná consumer group pre server
+    #         DEBEZIUM_SOURCE_KAFKA_GROUP_ID: debezium-sql-writer
+
+    #         # --- SINK: SQL do súboru ---
+    #         DEBEZIUM_SINK_TYPE: file
+    #         DEBEZIUM_SINK_FILE_FILENAME: /out/forclimb_changes.sql
+
+    #         # --- FORMÁT: SQL writer ---
+    #         # (SQL INSERT/UPDATE/DELETE)
+    #         DEBEZIUM_FORMAT_VALUE: io.debezium.server.format.sql.SqlChangeEventOutputWriter
+
+    #         # voliteľné – ak chceš špecifikovať PK polia manuálne pre tabuľky bez PK:
+    #         # DEBEZIUM_FORMAT_KEY_FIELDS: id
+
+    #         # Sink – SQL writer
+    #         DEBEZIUM_FILE_FLUSH_INTERVAL_MS: 2000
+    #         DEBEZIUM_LOGGING_LEVEL: INFO
+    #     volumes:
+    #         - ./.docker/volumes/debezium:/out
+    #     networks:
+    #         - default
 
 networks:
     default:

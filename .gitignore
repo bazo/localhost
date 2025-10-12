@@ -1,3 +1,2 @@
 .DS_Store
-.docker/volumes/kafka
 .env

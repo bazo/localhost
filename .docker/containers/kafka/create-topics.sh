@@ -43,7 +43,7 @@ progress() {
 # --- Vytváranie topicov ---
 echo "🪣 Vytváram Kafka topicy..."
 for tbl in $tables; do
-  topic="${TOPIC_PREFIX}.${tbl}"
+  topic="${TOPIC_PREFIX}.${MYSQL_DB}.${tbl}"
   /kafka/bin/kafka-topics.sh --create --if-not-exists \
     --topic "$topic" \
     --bootstrap-server "$KAFKA_BROKER" \
