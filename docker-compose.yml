@@ -273,7 +273,7 @@ services:
             - CONNECT_CONSUMER_SESSION_TIMEOUT_MS=45000
             - LOG4J_CONFIGURATION_FILE=/kafka/config/connect-log4j2.yaml
         volumes:
-            - ./.docker/volumes/kafka-connect:/data
+            - /Users/bazo/apps/forclimb/eshop/.db-changes:/data
             - ./.docker/volumes/kafka-connect/storage:/kafka/connect/storage/
             - ./.docker/volumes/kafka/data:/kafka/data
             - ./.docker/volumes/kafka/logs:/kafka/logs
