@@ -112,7 +112,7 @@ services:
             - ./.docker/volumes/redis:/data
 
     rabbitmq:
-        profiles: ["extended"]
+        #profiles: ["extended"]
         container_name: rabbitmq
         image: rabbitmq:management-alpine
         restart: always
@@ -137,6 +137,7 @@ services:
             - traefik.http.routers.rabbitmq.entrypoints=web
             - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
 
+    #https://www.reddit.com/r/selfhosted/comments/1kva3pw/avoid_minio_developers_introduce_trojan_horse/
     minio:
         #profiles: ["extended"]
         container_name: minio
