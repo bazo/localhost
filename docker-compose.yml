@@ -2,8 +2,8 @@ services:
     mysql:
         container_name: mysql
         restart: always
-        image: mysql:8.3
-        command: --default-authentication-plugin=mysql_native_password --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL
+        image: mysql:9
+        command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL #--skip-grant-tables --skip-networking=0
         environment:
             MYSQL_ROOT_PASSWORD: root
         ports:
@@ -93,35 +93,47 @@ services:
             - traefik.http.routers.var-dumper-server.entrypoints=web
             - traefik.http.services.var-dumper-server.loadbalancer.server.port=9900
 
-    mongo:
-        container_name: mongo
-        image: mongo
-        restart: always
-        ports:
-            - 27017:27017
-        volumes:
-            - ./.docker/volumes/mongo:/data/db
+    # mongo:
+    #     container_name: mongo
+    #     image: mongo
+    #     restart: always
+    #     ports:
+    #         - 27017:27017
+    #     volumes:
+    #         - ./.docker/volumes/mongo:/data/db
 
     redis:
         container_name: redis
         image: redis:alpine
         restart: always
+        command: >
+            redis-server
+            --maxmemory ${REDIS_MAXMEMORY:-256mb}
+            --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+            --save ""
+            --appendonly no
         ports:
             - 6379:6379
         volumes:
             - ./.docker/volumes/redis:/data
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 5s
 
     rabbitmq:
         #profiles: ["extended"]
         container_name: rabbitmq
         image: rabbitmq:management-alpine
         restart: always
-        entrypoint:
-            [
-                "/bin/sh",
-                "-c",
-                "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server",
-            ]
+        # entrypoint:
+        #     [
+        #         "/bin/sh",
+        #         "-c",
+        #         "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server",
+        #     ]
         environment:
             RABBITMQ_NODENAME: rabbit@localhost
             NODENAME: rabbit@localhost
@@ -166,6 +178,43 @@ services:
             - traefik.http.services.minio-console.loadbalancer.server.port=9001
             - traefik.http.routers.minio-console.service=minio-console
 
+        networks:
+            - default
+
+    deployer:
+        image: ghcr.io/brainz-digital/swarm-deployer:latest
+        container_name: deployer
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        environment:
+            GHCR_TOKEN: ${GHCR_TOKEN}
+            DB_HOST: mysql
+            DB_PORT: 3306
+            DB_USER: root
+            DB_PASSWORD: root
+            DB_NAME: deployments
+        depends_on:
+            - mysql
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "wget",
+                    "--no-verbose",
+                    "--tries=1",
+                    "-O",
+                    "/dev/null",
+                    "http://localhost:8080/health",
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 30s
+        labels:
+            traefik.enable: "true"
+            traefik.http.routers.deployer.rule: Host(`deploy.localhost`)
+            traefik.http.routers.deployer.entrypoints: web
+            traefik.http.services.deployer.loadbalancer.server.port: 8080
         networks:
             - default
 
@@ -344,6 +393,40 @@ services:
     #         - ./.docker/volumes/debezium:/out
     #     networks:
     #         - default
+
+    pocketid:
+        image: ghcr.io/pocket-id/pocket-id:latest
+        volumes:
+            - ./.docker/volumes/pocketid:/app/data
+        # secrets:
+        #     - pocketid_encryption_key
+        #     - maxmind_license_key
+        environment:
+            #ENCRYPTION_KEY_FILE: /run/secrets/pocketid_encryption_key
+            ANALYTICS_DISABLED: "true"
+            #MAXMIND_LICENSE_KEY_FILE: /run/secrets/maxmind_license_key
+            APP_URL: http://auth.localhost
+        networks:
+            - default
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "wget",
+                    "--no-verbose",
+                    "--tries=1",
+                    "--spider",
+                    "http://localhost:1411/health",
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 10s
+        labels:
+            traefik.enable: "true"
+            traefik.http.routers.pocketid.rule: Host(`auth.loclahost`)
+            traefik.http.routers.pocketid.entrypoints: webs
+            traefik.http.services.pocketid.loadbalancer.server.port: 1411
 
 networks:
     default:
