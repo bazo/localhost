@@ -10,6 +10,12 @@ services:
             - 3306:3306
         volumes:
             - ./.docker/volumes/mysql:/var/lib/mysql
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
         networks:
             - default
 
@@ -185,7 +191,8 @@ services:
         image: ghcr.io/brainz-digital/swarm-deployer:latest
         container_name: deployer
         volumes:
-            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - /var/run/docker.sock:/var/run/docker.sock
+        user: root
         environment:
             GHCR_TOKEN: ${GHCR_TOKEN}
             DB_HOST: mysql
@@ -194,7 +201,8 @@ services:
             DB_PASSWORD: root
             DB_NAME: deployments
         depends_on:
-            - mysql
+            mysql:
+                condition: service_healthy
         healthcheck:
             test:
                 [
@@ -209,12 +217,13 @@ services:
             interval: 30s
             timeout: 10s
             retries: 3
-            start_period: 30s
+            start_period: 40s
+        restart: unless-stopped
         labels:
-            traefik.enable: "true"
-            traefik.http.routers.deployer.rule: Host(`deploy.localhost`)
-            traefik.http.routers.deployer.entrypoints: web
-            traefik.http.services.deployer.loadbalancer.server.port: 8080
+            - traefik.enable=true
+            - traefik.http.routers.deployer.rule=Host(`deploy.localhost`)
+            - traefik.http.routers.deployer.entrypoints=web
+            - traefik.http.services.deployer.loadbalancer.server.port=8080
         networks:
             - default
 
@@ -396,6 +405,7 @@ services:
 
     pocketid:
         image: ghcr.io/pocket-id/pocket-id:latest
+        container_name: pocketid
         volumes:
             - ./.docker/volumes/pocketid:/app/data
         # secrets:
@@ -423,10 +433,96 @@ services:
             retries: 3
             start_period: 10s
         labels:
-            traefik.enable: "true"
-            traefik.http.routers.pocketid.rule: Host(`auth.loclahost`)
-            traefik.http.routers.pocketid.entrypoints: webs
-            traefik.http.services.pocketid.loadbalancer.server.port: 1411
+            - traefik.enable=true
+            - traefik.http.routers.pocketid.rule=Host(`auth.localhost`)
+            - traefik.http.routers.pocketid.entrypoints=web
+            - traefik.http.services.pocketid.loadbalancer.server.port=1411
+
+    code-server:
+        image: codercom/code-server:latest # Alebo linuxserver/code-server podľa preferencie
+        container_name: code-server
+        environment:
+            #- PASSWORD=mojetajneheslo # Nastav svoje heslo (alebo použij env pre token/autentizáciu)
+            - TZ=Europe/Bratislava
+        volumes:
+            - ./.docker/volumes/coder/.config:/home/coder/.config
+            - /Users/bazo/apps:/home/coder
+        restart: unless-stopped
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.coder.rule=Host(`coder.localhost`)
+            - traefik.http.routers.coder.entrypoints=web
+            - traefik.http.services.coder.loadbalancer.server.port=8080
+
+    authd:
+        image: ghcr.io/bazo/authd:latest
+        container_name: authd
+        restart: unless-stopped
+        user: root
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        environment:
+            # Required configuration - using HTTP for localhost development
+            AUTHD_ISSUER: http://authd.localhost
+            AUTHD_PUBLIC_URL: http://authd.localhost
+            AUTHD_WEBAUTHN_RPID: authd.localhost
+
+            # Database configuration
+            AUTHD_DB_HOST: mysql
+            AUTHD_DB_PORT: "3306"
+            AUTHD_DB_USER: root
+            AUTHD_DB_DATABASE: authd
+            AUTHD_DB_PASSWORD: root
+
+            # HTTP configuration
+            AUTHD_LISTEN: ":8080"
+
+            # Cookie configuration - adjusted for HTTP
+            AUTHD_COOKIE_NAME: authd
+            AUTHD_COOKIE_SECURE: "false"
+            AUTHD_COOKIE_SAMESITE: Lax
+            AUTHD_COOKIE_DOMAIN: ""
+            AUTHD_COOKIE_MAX_AGE: "86400"
+
+            # Redis configuration
+            AUTHD_REDIS_URL: redis://redis:6379/0
+
+            # WebAuthn configuration
+            AUTHD_WEBAUTHN_RPNAME: AuthD
+
+            # JWT configuration
+            AUTHD_JWT_ALG: ES256
+            AUTHD_JWT_ROTATE_DAYS: "30"
+            AUTHD_JWT_TTL_ACCESS: 10m
+            AUTHD_JWT_TTL_REFRESH: 720h
+
+            # Forward auth configuration
+            AUTHD_FORWARDAUTH_DEFAULT_MODE: "302"
+
+            # Docker integration (for auto-discovery)
+            AUTHD_DOCKER_SOCKET: /var/run/docker.sock
+            AUTHD_DOCKER_WATCH: "true"
+
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        ports:
+            - "8088:8080"
+        # healthcheck:
+        #     test: ["CMD-SHELL", "timeout 5 sh -c '</dev/tcp/localhost/8080' || exit 1"]
+        #     interval: 15s
+        #     timeout: 5s
+        #     retries: 3
+        #     start_period: 40s
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.authd.rule=Host(`authd.localhost`)
+            - traefik.http.routers.authd.entrypoints=web
+            - traefik.http.services.authd.loadbalancer.server.port=8080
+        networks:
+            - default
 
 networks:
     default:
