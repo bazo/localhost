@@ -559,14 +559,14 @@ services:
             - DB_PREFIX=${DB_PREFIX:-ps_}
 
             # Redis Cache Configuration
-            - PS_CACHE_ENABLE=1
-            - PS_CACHING=CacheRedis
-            - REDIS_HOST=redis
-            - REDIS_PORT=6379
-            - REDIS_DATABASE=0
-            - PS_CACHE_REDIS_PERSISTENT=0
-            - PS_CACHE_REDIS_TIMEOUT=2.0
-            - PS_CACHE_REDIS_READ_TIMEOUT=2.0
+            # - PS_CACHE_ENABLE=1
+            # - PS_CACHING=CacheRedis
+            # - REDIS_HOST=redis
+            # - REDIS_PORT=6379
+            # - REDIS_DATABASE=0
+            # - PS_CACHE_REDIS_PERSISTENT=0
+            # - PS_CACHE_REDIS_TIMEOUT=2.0
+            # - PS_CACHE_REDIS_READ_TIMEOUT=2.0
 
             # PHP Configuration
             - PHP_MEMORY_LIMIT=512M
@@ -593,9 +593,10 @@ services:
             - DATABASE_ENGINE=InnoDB
         volumes:
             # Persistent data volumes only (code is in image)
-            - prestashop-var:/www/var
-            - prestashop-config:/www/app/config
-            - prestashop-img:/www/img
+            #- prestashop-var:/www/var
+            - ./.docker/volumes/presta/var:/www/var
+            #- prestashop-config:/www/app/config
+            #- prestashop-img:/www/img
             - prestashop-download:/www/download
             - prestashop-upload:/www/upload
         expose:
