@@ -607,6 +607,8 @@ services:
             timeout: 5s
             retries: 3
             start_period: 60s
+        networks:
+            - default
 
     # Nginx Web Server
     nginx:
@@ -636,22 +638,18 @@ services:
 
             # Service configuration
             - traefik.http.services.presta9.loadbalancer.server.port=80
-            - traefik.http.services.presta9.loadbalancer.healthcheck.path=/
-            - traefik.http.services.presta9.loadbalancer.healthcheck.interval=30s
         healthcheck:
             test:
                 [
-                    "CMD",
-                    "wget",
-                    "--quiet",
-                    "--tries=1",
-                    "--spider",
-                    "http://localhost:80/",
+                    "CMD-SHELL",
+                    "wget --quiet --tries=1 --spider --server-response http://localhost:80/ 2>&1 | grep -q 'HTTP/' || exit 1"
                 ]
             interval: 30s
             timeout: 5s
             retries: 3
             start_period: 20s
+        networks:
+            - default
 
 networks:
     default:
