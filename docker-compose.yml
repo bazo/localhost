@@ -553,9 +553,9 @@ services:
 
             # Database Configuration
             - DB_SERVER=mysql
-            - DB_NAME=${MYSQL_DATABASE:-prestashop}
-            - DB_USER=${MYSQL_USER:-prestashop}
-            - DB_PASSWD=${MYSQL_PASSWORD:-prestashop}
+            - DB_NAME=${MYSQL_DATABASE:-presta9}
+            - DB_USER=${MYSQL_USER:-root}
+            - DB_PASSWD=${MYSQL_PASSWORD:-root}
             - DB_PREFIX=${DB_PREFIX:-ps_}
 
             # Redis Cache Configuration
@@ -576,6 +576,21 @@ services:
 
             # Environment
             - ENVIRONMENT=production
+
+            # PrestaShop 9 Application Environment Variables (required by index.php)
+            - DEV=1
+            - DISPLAY_ERRORS=1
+            - DISPLAY_STARTUP_ERRORS=1
+            - OPCACHE_DISABLE=0
+
+            # PrestaShop 9 Symfony-style database configuration
+            - DATABASE_HOST=mysql
+            - DATABASE_PORT=3306
+            - DATABASE_NAME=${MYSQL_DATABASE:-presta9}
+            - DATABASE_USER=${MYSQL_USER:-root}
+            - DATABASE_PASSWORD=${MYSQL_PASSWORD:-root}
+            - DATABASE_PREFIX=${DB_PREFIX:-ps_}
+            - DATABASE_ENGINE=InnoDB
         volumes:
             # Persistent data volumes only (code is in image)
             - prestashop-var:/www/var
@@ -594,9 +609,10 @@ services:
 
     # Nginx Web Server
     nginx:
-        image: ghcr.io/forclimb/prestashop/prestashop-nginx:presta9
+        image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
         container_name: presta9-nginx
         restart: unless-stopped
+        command: ["nginx"]
         depends_on:
             php:
                 condition: service_healthy
