@@ -1,3 +1,5 @@
+#!/bin/sh
+
 docker network create \
   --driver=bridge \
   --attachable \

@@ -193,7 +193,8 @@ services:
             - traefik.http.routers.minio-console.entrypoints=web
             - traefik.http.services.minio-console.loadbalancer.server.port=9001
             - traefik.http.routers.minio-console.service=minio-console
-
+        ports:
+            - 9000:9000
         networks:
             - default
 
@@ -532,15 +533,136 @@ services:
         networks:
             - default
 
-    php:
+    # php:
+    #     image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
+    #     container_name: presta9-php
+    #     restart: unless-stopped
+    #     ulimits:
+    #         nofile:
+    #             soft: 8192
+    #             hard: 8192
+    #     environment:
+    #         # PrestaShop Core Config
+    #         - PS_DOMAIN=forclimb.localhost
+    #         - PS_FOLDER_ADMIN=${PS_FOLDER_ADMIN:-adminps}
+    #         - PS_FOLDER_INSTALL=${PS_FOLDER_INSTALL:-install}
+    #         - PS_COUNTRY=${PS_COUNTRY:-SK}
+    #         - PS_LANGUAGE=${PS_LANGUAGE:-sk}
+    #         - PS_INSTALL_AUTO=${PS_INSTALL_AUTO:-0}
+    #         - PS_DEV_MODE=${PS_DEV_MODE:-0}
+    #         - PS_ENABLE_SSL=${PS_ENABLE_SSL:-0}
+
+    #         # Database Configuration
+    #         - DB_SERVER=mysql
+    #         - DB_NAME=${MYSQL_DATABASE:-presta9}
+    #         - DB_USER=${MYSQL_USER:-root}
+    #         - DB_PASSWD=${MYSQL_PASSWORD:-root}
+    #         - DB_PREFIX=${DB_PREFIX:-ps_}
+
+    #         # Redis Cache Configuration
+    #         # - PS_CACHE_ENABLE=1
+    #         # - PS_CACHING=CacheRedis
+    #         # - REDIS_HOST=redis
+    #         # - REDIS_PORT=6379
+    #         # - REDIS_DATABASE=0
+    #         # - PS_CACHE_REDIS_PERSISTENT=0
+    #         # - PS_CACHE_REDIS_TIMEOUT=2.0
+    #         # - PS_CACHE_REDIS_READ_TIMEOUT=2.0
+
+    #         # PHP Configuration
+    #         - PHP_MEMORY_LIMIT=512M
+    #         - PHP_MAX_EXECUTION_TIME=120
+    #         - PHP_UPLOAD_MAX_FILESIZE=64M
+    #         - PHP_POST_MAX_SIZE=64M
+
+    #         # Environment
+    #         - ENVIRONMENT=production
+
+    #         # PrestaShop 9 Application Environment Variables (required by index.php)
+    #         - DEV=1
+    #         - DISPLAY_ERRORS=1
+    #         - DISPLAY_STARTUP_ERRORS=1
+    #         - OPCACHE_DISABLE=0
+
+    #         # PrestaShop 9 Symfony-style database configuration
+    #         - DATABASE_HOST=mysql
+    #         - DATABASE_PORT=3306
+    #         - DATABASE_NAME=${MYSQL_DATABASE:-presta9}
+    #         - DATABASE_USER=${MYSQL_USER:-root}
+    #         - DATABASE_PASSWORD=${MYSQL_PASSWORD:-root}
+    #         - DATABASE_PREFIX=${DB_PREFIX:-ps_}
+    #         - DATABASE_ENGINE=InnoDB
+    #     volumes:
+    #         # Persistent data volumes only (code is in image)
+    #         #- prestashop-var:/www/var
+    #         - ./.docker/volumes/presta/var:/www/var
+    #         #- prestashop-config:/www/app/config
+    #         #- prestashop-img:/www/img
+    #         - prestashop-download:/www/download
+    #         - prestashop-upload:/www/upload
+    #         # Theme assets cache (compiled CSS/JS)
+    #         - prestashop-theme-assets:/www/themes/hummingbird/assets
+    #     expose:
+    #         - 9000
+    #     healthcheck:
+    #         test: ["CMD", "php-fpm8.4", "-t"]
+    #         interval: 30s
+    #         timeout: 5s
+    #         retries: 3
+    #         start_period: 60s
+    #     networks:
+    #         - default
+
+    # Nginx Web Server
+    # nginx:
+    #     image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
+    #     container_name: presta9-nginx
+    #     restart: unless-stopped
+    #     command: ["nginx"]
+    #     depends_on:
+    #         php:
+    #             condition: service_healthy
+    #     environment:
+    #         - ENVIRONMENT=production
+    #     volumes:
+    #         # Share uploaded files with nginx for serving
+    #         - prestashop-img:/www/img:ro
+    #         - prestashop-download:/www/download:ro
+    #         - prestashop-upload:/www/upload:ro
+    #         # Share theme assets cache (compiled CSS/JS)
+    #         - prestashop-theme-assets:/www/themes/hummingbird/assets:ro
+    #     labels:
+    #         # Traefik configuration
+    #         - traefik.enable=true
+    #         - traefik.docker.network=gateway
+
+    #         # HTTP Router
+    #         - traefik.http.routers.presta9.rule=Host(`forclimb.localhost`) )
+    #         - traefik.http.routers.presta9.entrypoints=web
+    #         - traefik.http.routers.presta9.service=presta9
+
+    #         # Service configuration
+    #         - traefik.http.services.presta9.loadbalancer.server.port=80
+    #     healthcheck:
+    #         test:
+    #             [
+    #                 "CMD-SHELL",
+    #                 "wget --quiet --tries=1 --spider --server-response http://localhost:80/ 2>&1 | grep -q 'HTTP/' || exit 1"
+    #             ]
+    #         interval: 30s
+    #         timeout: 5s
+    #         retries: 3
+    #         start_period: 20s
+    #     networks:
+    #         - default
+
+    caddy:
         image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
-        container_name: presta9-php
+        container_name: presta9-caddy
         restart: unless-stopped
-        ulimits:
-            nofile:
-                soft: 8192
-                hard: 8192
+        command: ["sh", "-c", "caddy run --config /Caddyfile --adapter caddyfile"]
         environment:
+            - ENVIRONMENT=production
             # PrestaShop Core Config
             - PS_DOMAIN=forclimb.localhost
             - PS_FOLDER_ADMIN=${PS_FOLDER_ADMIN:-adminps}
@@ -559,23 +681,20 @@ services:
             - DB_PREFIX=${DB_PREFIX:-ps_}
 
             # Redis Cache Configuration
-            # - PS_CACHE_ENABLE=1
-            # - PS_CACHING=CacheRedis
-            # - REDIS_HOST=redis
-            # - REDIS_PORT=6379
-            # - REDIS_DATABASE=0
-            # - PS_CACHE_REDIS_PERSISTENT=0
-            # - PS_CACHE_REDIS_TIMEOUT=2.0
-            # - PS_CACHE_REDIS_READ_TIMEOUT=2.0
+            - PS_CACHE_ENABLE=1
+            - PS_CACHING=CacheRedis
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+            - REDIS_DATABASE=1
+            - PS_CACHE_REDIS_PERSISTENT=0
+            - PS_CACHE_REDIS_TIMEOUT=2.0
+            - PS_CACHE_REDIS_READ_TIMEOUT=2.0
 
             # PHP Configuration
             - PHP_MEMORY_LIMIT=512M
             - PHP_MAX_EXECUTION_TIME=120
             - PHP_UPLOAD_MAX_FILESIZE=64M
             - PHP_POST_MAX_SIZE=64M
-
-            # Environment
-            - ENVIRONMENT=production
 
             # PrestaShop 9 Application Environment Variables (required by index.php)
             - DEV=1
@@ -599,55 +718,22 @@ services:
             #- prestashop-img:/www/img
             - prestashop-download:/www/download
             - prestashop-upload:/www/upload
-        expose:
-            - 9000
-        healthcheck:
-            test: ["CMD", "php-fpm8.4", "-t"]
-            interval: 30s
-            timeout: 5s
-            retries: 3
-            start_period: 60s
-        networks:
-            - default
-
-    # Nginx Web Server
-    nginx:
-        image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
-        container_name: presta9-nginx
-        restart: unless-stopped
-        command: ["nginx"]
-        depends_on:
-            php:
-                condition: service_healthy
-        environment:
-            - ENVIRONMENT=production
-        volumes:
+            # Theme assets cache (compiled CSS/JS)
+            - prestashop-theme-assets:/www/themes/hummingbird/assets
             # Share uploaded files with nginx for serving
             - prestashop-img:/www/img:ro
-            - prestashop-download:/www/download:ro
-            - prestashop-upload:/www/upload:ro
         labels:
             # Traefik configuration
             - traefik.enable=true
-            - traefik.docker.network=gateway
+            #- traefik.docker.network=gateway
 
             # HTTP Router
-            - traefik.http.routers.presta9.rule=Host(`forclimb.localhost`) || Host(`forclimb.test`)
-            - traefik.http.routers.presta9.entrypoints=web
-            - traefik.http.routers.presta9.service=presta9
+            - traefik.http.routers.presta9-caddy.rule=Host(`forclimb.localhost`)
+            - traefik.http.routers.presta9-caddy.entrypoints=web
+            - traefik.http.routers.presta9-caddy.service=presta9-caddy
 
             # Service configuration
-            - traefik.http.services.presta9.loadbalancer.server.port=80
-        healthcheck:
-            test:
-                [
-                    "CMD-SHELL",
-                    "wget --quiet --tries=1 --spider --server-response http://localhost:80/ 2>&1 | grep -q 'HTTP/' || exit 1"
-                ]
-            interval: 30s
-            timeout: 5s
-            retries: 3
-            start_period: 20s
+            - traefik.http.services.presta9-caddy.loadbalancer.server.port=80
         networks:
             - default
 
@@ -666,4 +752,6 @@ volumes:
     prestashop-download:
         driver: local
     prestashop-upload:
+        driver: local
+    prestashop-theme-assets:
         driver: local
