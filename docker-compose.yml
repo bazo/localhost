@@ -1,105 +1,128 @@
 services:
-    mysql:
-        container_name: mysql
-        restart: always
-        image: mysql:9
-        command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL #--skip-grant-tables --skip-networking=0
-        environment:
-            MYSQL_ROOT_PASSWORD: root
-        ports:
-            - 3306:3306
-        volumes:
-            - ./.docker/volumes/mysql:/var/lib/mysql
-        healthcheck:
-            test:
-                [
-                    "CMD",
-                    "mysqladmin",
-                    "ping",
-                    "-h",
-                    "localhost",
-                    "-u",
-                    "root",
-                    "-proot",
-                ]
-            interval: 10s
-            timeout: 5s
-            retries: 5
-            start_period: 30s
-        networks:
-            - default
+    # mysql:
+    #     container_name: mysql
+    #     restart: unless-stopped
+    #     image: mysql:9
+    #     command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL #--skip-grant-tables --skip-networking=0
+    #     environment:
+    #         MYSQL_ROOT_PASSWORD: root
+    #     ports:
+    #         - 3306:3306
+    #     volumes:
+    #         - ./.docker/volumes/mysql:/var/lib/mysql
+    #     healthcheck:
+    #         test:
+    #             [
+    #                 "CMD",
+    #                 "mysqladmin",
+    #                 "ping",
+    #                 "-h",
+    #                 "localhost",
+    #                 "-u",
+    #                 "root",
+    #                 "-proot",
+    #             ]
+    #         interval: 10s
+    #         timeout: 5s
+    #         retries: 5
+    #         start_period: 30s
+    #     networks:
+    #         - default
 
-    postgres:
-        profiles: ["extended"]
-        image: postgres
-        container_name: postgres
-        restart: always
-        environment:
-            #POSTGRES_DB: mydb
-            #POSTGRES_USER: root
-            POSTGRES_PASSWORD: root
-        ports:
-            - 5432:5432
-        volumes:
-            - ./.docker/volumes/postgres:/var/lib/postgresql
-        networks:
-            - default
+    # postgres:
+    #     profiles: ["extended"]
+    #     image: postgres
+    #     container_name: postgres
+    #     restart: unless-stopped
+    #     environment:
+    #         #POSTGRES_DB: mydb
+    #         #POSTGRES_USER: root
+    #         POSTGRES_PASSWORD: root
+    #     ports:
+    #         - 5432:5432
+    #     volumes:
+    #         - ./.docker/volumes/postgres:/var/lib/postgresql
+    #     networks:
+    #         - default
 
-    traefik:
-        container_name: traefik
+    # traefik + maildebug now run natively (launchd: com.bazo.traefik,
+    # com.bazo.maildebug); routes in ~/.config/traefik.
+    # traefik:
+    #     container_name: traefik
+    #     restart: always
+    #     image: traefik
+    #     command:
+    #         #- "--log.level=DEBUG"
+    #         - "--log.level=INFO"
+    #         - "--api.insecure=true"
+    #         - "--providers.docker=true"
+    #         - "--providers.docker.exposedbydefault=false"
+    #         - "--entrypoints.web.address=:80"
+    #         #- "--entrypoints.websecure.address=:443"
+    #         #- "--entrypoints.websecure.http.tls=false"
+    #         #- "--entrypoints.web.http.redirections.entrypoint.to=web"
+    #         #- "--entrypoints.web.http.redirections.entrypoint.scheme=http"
+    #     ports:
+    #         - "80:80"
+    #         #- "8080:8080"
+    #     volumes:
+    #         - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.traefik-api.rule=Host(`traefik.localhost`)
+    #         - traefik.http.routers.traefik-api.service=api@internal
+    #     networks:
+    #         - default
+
+    # maildebug:
+    #     #profiles: ["extended"]
+    #     container_name: maildebug
+    #     image: bazo/maildebug
+    #     restart: always
+    #     depends_on: [traefik]
+    #     ports:
+    #         - 1025:1025
+    #     volumes:
+    #         - ./.docker/volumes/maildebug:/data
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.port=8100
+    #         - traefik.http.routers.maildebug.rule=Host(`maildebug.localhost`)
+    #         - traefik.http.routers.maildebug.entrypoints=web
+    #         - traefik.http.services.maildebug.loadbalancer.server.port=8100
+    #     networks:
+    #         - default
+
+    smsdebug:
+        #profiles: ["extended"]
+        container_name: smsdebug
+        image: bazo/smsdebug
         restart: always
-        image: traefik
-        command:
-            #- "--log.level=DEBUG"
-            - "--log.level=INFO"
-            - "--api.insecure=true"
-            - "--providers.docker=true"
-            - "--providers.docker.exposedbydefault=false"
-            - "--entrypoints.web.address=:80"
-            #- "--entrypoints.websecure.address=:443"
-            #- "--entrypoints.websecure.http.tls=false"
-            #- "--entrypoints.web.http.redirections.entrypoint.to=web"
-            #- "--entrypoints.web.http.redirections.entrypoint.scheme=http"
+        # Published on the host as well as routed by Traefik: smsdebug.localhost
+        # is for the browser, but a container must not use a *.localhost name
+        # (RFC 6761 pins it to 127.0.0.1, looping back into the caller's own web
+        # server) — apps post to host.docker.internal:8101 instead.
         ports:
-            - "80:80"
-            #- "8080:8080"
+            - 127.0.0.1:8101:8101
         volumes:
-            - "/var/run/docker.sock:/var/run/docker.sock:ro"
+            - ./.docker/volumes/smsdebug:/data
         labels:
             - traefik.enable=true
-            - traefik.http.routers.traefik-api.rule=Host(`traefik.localhost`)
-            - traefik.http.routers.traefik-api.service=api@internal
-        networks:
-            - default
-
-    maildebug:
-        profiles: ["extended"]
-        container_name: maildebug
-        image: bazo/maildebug
-        restart: always
-        depends_on: [traefik]
-        ports:
-            - 1025:1025
-        volumes:
-            - ./.docker/volumes/maildebug:/data
-        labels:
-            - traefik.enable=true
-            - traefik.port=8100
-            - traefik.http.routers.maildebug.rule=Host(`maildebug.localhost`)
-            - traefik.http.routers.maildebug.entrypoints=web
-            - traefik.http.services.maildebug.loadbalancer.server.port=8100
+            - traefik.port=8101
+            - traefik.http.routers.smsdebug.rule=Host(`smsdebug.localhost`)
+            - traefik.http.routers.smsdebug.entrypoints=web
+            - traefik.http.services.smsdebug.loadbalancer.server.port=8101
         networks:
             - default
 
     var-dumper-server:
-        profiles: ["extended"]
+        #profiles: ["extended"]
         container_name: var-dumper-server
         image: bazo/var-dumper-server
-        restart: always
-        depends_on: [traefik]
+        restart: unless-stopped
         ports:
             - 9912:9912
-            #- 9900:9900
+            - 127.0.0.1:9900:9900
         volumes:
             - ./.docker/volumes/var-dumps:/server/db
         labels:
@@ -118,125 +141,125 @@ services:
     #     volumes:
     #         - ./.docker/volumes/mongo:/data/db
 
-    redis:
-        container_name: redis
-        image: redis:alpine
-        restart: always
-        command: >
-            redis-server
-            --maxmemory ${REDIS_MAXMEMORY:-256mb}
-            --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
-            --save ""
-            --appendonly no
-        ports:
-            - 6379:6379
-        volumes:
-            - ./.docker/volumes/redis:/data
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 30s
-            timeout: 5s
-            retries: 3
-            start_period: 5s
+    # redis:
+    #     container_name: redis
+    #     image: redis:alpine
+    #     restart: unless-stopped
+    #     command: >
+    #         redis-server
+    #         --maxmemory ${REDIS_MAXMEMORY:-256mb}
+    #         --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+    #         --save ""
+    #         --appendonly no
+    #     ports:
+    #         - 6379:6379
+    #     volumes:
+    #         - ./.docker/volumes/redis:/data
+    #     healthcheck:
+    #         test: ["CMD", "redis-cli", "ping"]
+    #         interval: 30s
+    #         timeout: 5s
+    #         retries: 3
+    #         start_period: 5s
 
-    rabbitmq:
-        #profiles: ["extended"]
-        container_name: rabbitmq
-        image: rabbitmq:management-alpine
-        restart: always
-        # entrypoint:
-        #     [
-        #         "/bin/sh",
-        #         "-c",
-        #         "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server",
-        #     ]
-        environment:
-            RABBITMQ_NODENAME: rabbit@localhost
-            NODENAME: rabbit@localhost
-        ports:
-            - 5672:5672
-            - 15672:15672
-        volumes:
-            - ./.docker/volumes/rabbitmq:/var/lib/rabbitmq
-        labels:
-            - traefik.enable=true
-            - traefik.port=15672
-            - traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)
-            - traefik.http.routers.rabbitmq.entrypoints=web
-            - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+    # rabbitmq:
+    #     #profiles: ["extended"]
+    #     container_name: rabbitmq
+    #     image: rabbitmq:management-alpine
+    #     restart: unless-stopped
+    #     # entrypoint:
+    #     #     [
+    #     #         "/bin/sh",
+    #     #         "-c",
+    #     #         "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie && chmod 400 /var/lib/rabbitmq/.erlang.cookie && exec docker-entrypoint.sh rabbitmq-server",
+    #     #     ]
+    #     environment:
+    #         RABBITMQ_NODENAME: rabbit@localhost
+    #         NODENAME: rabbit@localhost
+    #     ports:
+    #         - 5672:5672
+    #         - 15672:15672
+    #     volumes:
+    #         - ./.docker/volumes/rabbitmq:/var/lib/rabbitmq
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.port=15672
+    #         - traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)
+    #         - traefik.http.routers.rabbitmq.entrypoints=web
+    #         - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
 
     #https://www.reddit.com/r/selfhosted/comments/1kva3pw/avoid_minio_developers_introduce_trojan_horse/
-    minio:
-        #profiles: ["extended"]
-        container_name: minio
-        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-        restart: always
-        command: server /data --console-address ":9001"
-        environment:
-            MINIO_ROOT_USER: root
-            MINIO_ROOT_PASSWORD: rootroot
-            MINIO_BROWSER_REDIRECT_URL: http://minio-console.localhost
-            MINIO_DOMAIN: minio.localhost
-        volumes:
-            - ./.docker/volumes/minio:/data # 👈 Persist data in host folder
-        labels:
-            - traefik.enable=true
+    # minio:
+    #     #profiles: ["extended"]
+    #     container_name: minio
+    #     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    #     restart: always
+    #     command: server /data --console-address ":9001"
+    #     environment:
+    #         MINIO_ROOT_USER: root
+    #         MINIO_ROOT_PASSWORD: rootroot
+    #         MINIO_BROWSER_REDIRECT_URL: http://minio-console.localhost
+    #         MINIO_DOMAIN: minio.localhost
+    #     volumes:
+    #         - ./.docker/volumes/minio:/data # 👈 Persist data in host folder
+    #     labels:
+    #         - traefik.enable=true
 
-            # API on http://minio.localhost
-            - traefik.http.routers.minio.rule=Host(`minio.localhost`) || Host(`uploads.minio.localhost`)
-            - traefik.http.routers.minio.entrypoints=web
-            - traefik.http.services.minio.loadbalancer.server.port=9000
-            - traefik.http.routers.minio.service=minio
+    #         # API on http://minio.localhost
+    #         - traefik.http.routers.minio.rule=Host(`minio.localhost`) || Host(`uploads.minio.localhost`) || Host(`waldo.minio.localhost`)
+    #         - traefik.http.routers.minio.entrypoints=web
+    #         - traefik.http.services.minio.loadbalancer.server.port=9000
+    #         - traefik.http.routers.minio.service=minio
 
-            # # Console on http://minio-console.localhost
-            - traefik.http.routers.minio-console.rule=Host(`minio-console.localhost`)
-            - traefik.http.routers.minio-console.entrypoints=web
-            - traefik.http.services.minio-console.loadbalancer.server.port=9001
-            - traefik.http.routers.minio-console.service=minio-console
-        ports:
-            - 9000:9000
-        networks:
-            - default
+    #         # # Console on http://minio-console.localhost
+    #         - traefik.http.routers.minio-console.rule=Host(`minio-console.localhost`)
+    #         - traefik.http.routers.minio-console.entrypoints=web
+    #         - traefik.http.services.minio-console.loadbalancer.server.port=9001
+    #         - traefik.http.routers.minio-console.service=minio-console
+    #     ports:
+    #         - 9000:9000
+    #     networks:
+    #         - default
 
-    deployer:
-        image: ghcr.io/brainz-digital/swarm-deployer:latest
-        container_name: deployer
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-        user: root
-        environment:
-            GHCR_TOKEN: ${GHCR_TOKEN}
-            DB_HOST: mysql
-            DB_PORT: 3306
-            DB_USER: root
-            DB_PASSWORD: root
-            DB_NAME: deployments
-        depends_on:
-            mysql:
-                condition: service_healthy
-        healthcheck:
-            test:
-                [
-                    "CMD",
-                    "wget",
-                    "--no-verbose",
-                    "--tries=1",
-                    "-O",
-                    "/dev/null",
-                    "http://localhost:8080/health",
-                ]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 40s
-        restart: unless-stopped
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.deployer.rule=Host(`deploy.localhost`)
-            - traefik.http.routers.deployer.entrypoints=web
-            - traefik.http.services.deployer.loadbalancer.server.port=8080
-        networks:
-            - default
+    # deployer:
+    #     image: ghcr.io/brainz-digital/swarm-deployer:latest
+    #     container_name: deployer
+    #     volumes:
+    #         - /var/run/docker.sock:/var/run/docker.sock
+    #     user: root
+    #     environment:
+    #         GHCR_TOKEN: ${GHCR_TOKEN}
+    #         DB_HOST: mysql
+    #         DB_PORT: 3306
+    #         DB_USER: root
+    #         DB_PASSWORD: root
+    #         DB_NAME: deployments
+    #     depends_on:
+    #         mysql:
+    #             condition: service_healthy
+    #     healthcheck:
+    #         test:
+    #             [
+    #                 "CMD",
+    #                 "wget",
+    #                 "--no-verbose",
+    #                 "--tries=1",
+    #                 "-O",
+    #                 "/dev/null",
+    #                 "http://localhost:8080/health",
+    #             ]
+    #         interval: 30s
+    #         timeout: 10s
+    #         retries: 3
+    #         start_period: 40s
+    #     restart: unless-stopped
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.deployer.rule=Host(`deploy.localhost`)
+    #         - traefik.http.routers.deployer.entrypoints=web
+    #         - traefik.http.services.deployer.loadbalancer.server.port=8080
+    #     networks:
+    #         - default
 
     # oracle-db:
     #     image: container-registry.oracle.com/database/free:latest
@@ -253,124 +276,124 @@ services:
     #     networks:
     #         - default
 
-    portainer:
-        image: portainer/portainer-ce:latest
-        container_name: portainer
-        volumes:
-            - ./.docker/volumes/portainer:/data
-            - /var/run/docker.sock:/var/run/docker.sock
-        restart: unless-stopped
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.portainer.rule=Host(`portainer.localhost`)
-            - traefik.http.routers.portainer.entrypoints=web
-            - traefik.http.services.portainer.loadbalancer.server.port=9000
-            - traefik.http.routers.portainer.service=portainer
-        networks:
-            - default
+    # portainer:
+    #     image: portainer/portainer-ce:latest
+    #     container_name: portainer
+    #     volumes:
+    #         - ./.docker/volumes/portainer:/data
+    #         - /var/run/docker.sock:/var/run/docker.sock
+    #     restart: unless-stopped
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.portainer.rule=Host(`portainer.localhost`)
+    #         - traefik.http.routers.portainer.entrypoints=web
+    #         - traefik.http.services.portainer.loadbalancer.server.port=9000
+    #         - traefik.http.routers.portainer.service=portainer
+    #     networks:
+    #         - default
 
-    zookeeper:
-        #profiles: ["kafka"]
-        image: zookeeper
-        container_name: zookeeper
-        restart: unless-stopped
-        # ports:
-        #     - 2181:2181
-        labels:
-            - traefik.enable=false
-        networks:
-            - default
+    # zookeeper:
+    #     #profiles: ["kafka"]
+    #     image: zookeeper
+    #     container_name: zookeeper
+    #     restart: unless-stopped
+    #     # ports:
+    #     #     - 2181:2181
+    #     labels:
+    #         - traefik.enable=false
+    #     networks:
+    #         - default
 
-    kafka:
-        #profiles: ["kafka"]
-        #image: quay.io/debezium/kafka:3.3.0.Final
-        build:
-            context: ./.docker/containers/kafka
-            args:
-                UID: ${UID}
-        container_name: kafka
-        restart: unless-stopped
-        depends_on:
-            - zookeeper
-        expose:
-            - 9092
-        environment:
-            ZOOKEEPER_CONNECT: zookeeper:2181
-            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    # kafka:
+    #     #profiles: ["kafka"]
+    #     #image: quay.io/debezium/kafka:3.3.0.Final
+    #     build:
+    #         context: ./.docker/containers/kafka
+    #         args:
+    #             UID: ${UID}
+    #     container_name: kafka
+    #     restart: unless-stopped
+    #     depends_on:
+    #         - zookeeper
+    #     expose:
+    #         - 9092
+    #     environment:
+    #         ZOOKEEPER_CONNECT: zookeeper:2181
+    #         KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+    #         KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-            KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS: 60000
-            KAFKA_QUEUED_MAX_REQUESTS: 500
-            KAFKA_NUM_NETWORK_THREADS: 8
-            KAFKA_NUM_IO_THREADS: 8
-            KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-            KAFKA_HEARTBEAT_INTERVAL_MS: 3000
-            KAFKA_SESSION_TIMEOUT_MS: 45000
-        volumes:
-            - ./.docker/containers/kafka/create-topics.sh:/kafka/create-topics.sh
-            - ./.docker/volumes/kafka/data:/kafka/data
-            - ./.docker/volumes/kafka/logs:/kafka/logs
-        networks:
-            - default
+    #         KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS: 60000
+    #         KAFKA_QUEUED_MAX_REQUESTS: 500
+    #         KAFKA_NUM_NETWORK_THREADS: 8
+    #         KAFKA_NUM_IO_THREADS: 8
+    #         KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    #         KAFKA_HEARTBEAT_INTERVAL_MS: 3000
+    #         KAFKA_SESSION_TIMEOUT_MS: 45000
+    #     volumes:
+    #         - ./.docker/containers/kafka/create-topics.sh:/kafka/create-topics.sh
+    #         - ./.docker/volumes/kafka/data:/kafka/data
+    #         - ./.docker/volumes/kafka/logs:/kafka/logs
+    #     networks:
+    #         - default
 
-    connect:
-        #profiles: ["kafka"]
-        #image: quay.io/debezium/connect:3.3.0.Final
-        build:
-            context: ./.docker/containers/connect
-            args:
-                UID: ${UID}
-        container_name: connect
-        restart: unless-stopped
-        depends_on:
-            - kafka
-            - mysql
-        ports:
-            - 8083:8083
-        environment:
-            - BOOTSTRAP_SERVERS=kafka:9092
-            - GROUP_ID=1
-            - CONFIG_STORAGE_TOPIC=my_connect_configs
-            - OFFSET_STORAGE_TOPIC=my_connect_offsets
-            - STATUS_STORAGE_TOPIC=my_connect_statuses
-            - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-            - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-            - VALUE_CONVERTER_SCHEMAS_ENABLE=false
-            - KEY_CONVERTER_SCHEMAS_ENABLE=false
-            - PLUGIN_PATH=/kafka/connect
+    # connect:
+    #     #profiles: ["kafka"]
+    #     #image: quay.io/debezium/connect:3.3.0.Final
+    #     build:
+    #         context: ./.docker/containers/connect
+    #         args:
+    #             UID: ${UID}
+    #     container_name: connect
+    #     restart: unless-stopped
+    #     depends_on:
+    #         - kafka
+    #         - mysql
+    #     ports:
+    #         - 8083:8083
+    #     environment:
+    #         - BOOTSTRAP_SERVERS=kafka:9092
+    #         - GROUP_ID=1
+    #         - CONFIG_STORAGE_TOPIC=my_connect_configs
+    #         - OFFSET_STORAGE_TOPIC=my_connect_offsets
+    #         - STATUS_STORAGE_TOPIC=my_connect_statuses
+    #         - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+    #         - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+    #         - VALUE_CONVERTER_SCHEMAS_ENABLE=false
+    #         - KEY_CONVERTER_SCHEMAS_ENABLE=false
+    #         - PLUGIN_PATH=/kafka/connect
 
-            - CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS=3000
-            - CONNECT_CONSUMER_SESSION_TIMEOUT_MS=45000
-            - LOG4J_CONFIGURATION_FILE=/kafka/config/connect-log4j2.yaml
-        volumes:
-            - /Users/bazo/apps/forclimb/eshop/.db-changes:/data
-            - /Users/bazo/apps/himala.sk/.db-changes:/data-himala
-            - ./.docker/volumes/kafka-connect/storage:/kafka/connect/storage/
-            - ./.docker/volumes/kafka/data:/kafka/data
-            - ./.docker/volumes/kafka/logs:/kafka/logs
-            - ./.docker/containers/connect/connect-log4j2.yaml:/kafka/config/connect-log4j2.yaml
-        networks:
-            - default
+    #         - CONNECT_CONSUMER_HEARTBEAT_INTERVAL_MS=3000
+    #         - CONNECT_CONSUMER_SESSION_TIMEOUT_MS=45000
+    #         - LOG4J_CONFIGURATION_FILE=/kafka/config/connect-log4j2.yaml
+    #     volumes:
+    #         - /Users/bazo/apps/forclimb/eshop/.db-changes:/data
+    #         - /Users/bazo/apps/himala.sk/.db-changes:/data-himala
+    #         - ./.docker/volumes/kafka-connect/storage:/kafka/connect/storage/
+    #         - ./.docker/volumes/kafka/data:/kafka/data
+    #         - ./.docker/volumes/kafka/logs:/kafka/logs
+    #         - ./.docker/containers/connect/connect-log4j2.yaml:/kafka/config/connect-log4j2.yaml
+    #     networks:
+    #         - default
 
-    kafka-ui:
-        #profiles: ["kafka"]
-        image: provectuslabs/kafka-ui:latest
-        container_name: kafka-ui
-        restart: unless-stopped
-        depends_on:
-            - kafka
-        environment:
-            KAFKA_CLUSTERS_0_NAME: local
-            KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-            KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.kafka-ui.rule=Host(`kafka-ui.localhost`)
-            - traefik.http.routers.kafka-ui.entrypoints=web
-            - traefik.http.routers.kafka-ui.service=kafka-ui
-            - traefik.http.services.kafka-ui.loadbalancer.server.port=8080
-        networks:
-            - default
+    # kafka-ui:
+    #     #profiles: ["kafka"]
+    #     image: provectuslabs/kafka-ui:latest
+    #     container_name: kafka-ui
+    #     restart: unless-stopped
+    #     depends_on:
+    #         - kafka
+    #     environment:
+    #         KAFKA_CLUSTERS_0_NAME: local
+    #         KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    #         KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.kafka-ui.rule=Host(`kafka-ui.localhost`)
+    #         - traefik.http.routers.kafka-ui.entrypoints=web
+    #         - traefik.http.routers.kafka-ui.service=kafka-ui
+    #         - traefik.http.services.kafka-ui.loadbalancer.server.port=8080
+    #     networks:
+    #         - default
 
     # debezium-server:
     #     image: quay.io/debezium/server:3.3.0.Final
@@ -414,124 +437,124 @@ services:
     #     networks:
     #         - default
 
-    pocketid:
-        image: ghcr.io/pocket-id/pocket-id:latest
-        container_name: pocketid
-        volumes:
-            - ./.docker/volumes/pocketid:/app/data
-        # secrets:
-        #     - pocketid_encryption_key
-        #     - maxmind_license_key
-        environment:
-            #ENCRYPTION_KEY_FILE: /run/secrets/pocketid_encryption_key
-            ANALYTICS_DISABLED: "true"
-            #MAXMIND_LICENSE_KEY_FILE: /run/secrets/maxmind_license_key
-            APP_URL: http://auth.localhost
-        networks:
-            - default
-        healthcheck:
-            test:
-                [
-                    "CMD",
-                    "wget",
-                    "--no-verbose",
-                    "--tries=1",
-                    "--spider",
-                    "http://localhost:1411/health",
-                ]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 10s
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.pocketid.rule=Host(`auth.localhost`)
-            - traefik.http.routers.pocketid.entrypoints=web
-            - traefik.http.services.pocketid.loadbalancer.server.port=1411
+    # pocketid:
+    #     image: ghcr.io/pocket-id/pocket-id:latest
+    #     container_name: pocketid
+    #     volumes:
+    #         - ./.docker/volumes/pocketid:/app/data
+    #     # secrets:
+    #     #     - pocketid_encryption_key
+    #     #     - maxmind_license_key
+    #     environment:
+    #         #ENCRYPTION_KEY_FILE: /run/secrets/pocketid_encryption_key
+    #         ANALYTICS_DISABLED: "true"
+    #         #MAXMIND_LICENSE_KEY_FILE: /run/secrets/maxmind_license_key
+    #         APP_URL: http://auth.localhost
+    #     networks:
+    #         - default
+    #     healthcheck:
+    #         test:
+    #             [
+    #                 "CMD",
+    #                 "wget",
+    #                 "--no-verbose",
+    #                 "--tries=1",
+    #                 "--spider",
+    #                 "http://localhost:1411/health",
+    #             ]
+    #         interval: 30s
+    #         timeout: 10s
+    #         retries: 3
+    #         start_period: 10s
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.pocketid.rule=Host(`auth.localhost`)
+    #         - traefik.http.routers.pocketid.entrypoints=web
+    #         - traefik.http.services.pocketid.loadbalancer.server.port=1411
 
-    code-server:
-        image: codercom/code-server:latest # Alebo linuxserver/code-server podľa preferencie
-        container_name: code-server
-        environment:
-            #- PASSWORD=mojetajneheslo # Nastav svoje heslo (alebo použij env pre token/autentizáciu)
-            - TZ=Europe/Bratislava
-        volumes:
-            - ./.docker/volumes/coder/.config:/home/coder/.config
-            - /Users/bazo/apps:/home/coder
-        restart: unless-stopped
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.coder.rule=Host(`coder.localhost`)
-            - traefik.http.routers.coder.entrypoints=web
-            - traefik.http.services.coder.loadbalancer.server.port=8080
+    # code-server:
+    #     image: codercom/code-server:latest # Alebo linuxserver/code-server podľa preferencie
+    #     container_name: code-server
+    #     environment:
+    #         #- PASSWORD=mojetajneheslo # Nastav svoje heslo (alebo použij env pre token/autentizáciu)
+    #         - TZ=Europe/Bratislava
+    #     volumes:
+    #         - ./.docker/volumes/coder/.config:/home/coder/.config
+    #         - /Users/bazo/apps:/home/coder
+    #     restart: unless-stopped
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.coder.rule=Host(`coder.localhost`)
+    #         - traefik.http.routers.coder.entrypoints=web
+    #         - traefik.http.services.coder.loadbalancer.server.port=8080
 
-    authd:
-        image: ghcr.io/bazo/authd:latest
-        container_name: authd
-        restart: unless-stopped
-        user: root
-        depends_on:
-            mysql:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
-        environment:
-            # Required configuration - using HTTP for localhost development
-            AUTHD_ISSUER: http://authd.localhost
-            AUTHD_PUBLIC_URL: http://authd.localhost
-            AUTHD_WEBAUTHN_RPID: authd.localhost
+    # authd:
+    #     image: ghcr.io/bazo/authd:latest
+    #     container_name: authd
+    #     restart: unless-stopped
+    #     user: root
+    #     depends_on:
+    #         mysql:
+    #             condition: service_healthy
+    #         redis:
+    #             condition: service_healthy
+    #     environment:
+    #         # Required configuration - using HTTP for localhost development
+    #         AUTHD_ISSUER: http://authd.localhost
+    #         AUTHD_PUBLIC_URL: http://authd.localhost
+    #         AUTHD_WEBAUTHN_RPID: authd.localhost
 
-            # Database configuration
-            AUTHD_DB_HOST: mysql
-            AUTHD_DB_PORT: "3306"
-            AUTHD_DB_USER: root
-            AUTHD_DB_DATABASE: authd
-            AUTHD_DB_PASSWORD: root
+    #         # Database configuration
+    #         AUTHD_DB_HOST: mysql
+    #         AUTHD_DB_PORT: "3306"
+    #         AUTHD_DB_USER: root
+    #         AUTHD_DB_DATABASE: authd
+    #         AUTHD_DB_PASSWORD: root
 
-            # HTTP configuration
-            AUTHD_LISTEN: ":8080"
+    #         # HTTP configuration
+    #         AUTHD_LISTEN: ":8080"
 
-            # Cookie configuration - adjusted for HTTP
-            AUTHD_COOKIE_NAME: authd
-            AUTHD_COOKIE_SECURE: "false"
-            AUTHD_COOKIE_SAMESITE: Lax
-            AUTHD_COOKIE_DOMAIN: ""
-            AUTHD_COOKIE_MAX_AGE: "86400"
+    #         # Cookie configuration - adjusted for HTTP
+    #         AUTHD_COOKIE_NAME: authd
+    #         AUTHD_COOKIE_SECURE: "false"
+    #         AUTHD_COOKIE_SAMESITE: Lax
+    #         AUTHD_COOKIE_DOMAIN: ""
+    #         AUTHD_COOKIE_MAX_AGE: "86400"
 
-            # Redis configuration
-            AUTHD_REDIS_URL: redis://redis:6379/0
+    #         # Redis configuration
+    #         AUTHD_REDIS_URL: redis://redis:6379/0
 
-            # WebAuthn configuration
-            AUTHD_WEBAUTHN_RPNAME: AuthD
+    #         # WebAuthn configuration
+    #         AUTHD_WEBAUTHN_RPNAME: AuthD
 
-            # JWT configuration
-            AUTHD_JWT_ALG: ES256
-            AUTHD_JWT_ROTATE_DAYS: "30"
-            AUTHD_JWT_TTL_ACCESS: 10m
-            AUTHD_JWT_TTL_REFRESH: 720h
+    #         # JWT configuration
+    #         AUTHD_JWT_ALG: ES256
+    #         AUTHD_JWT_ROTATE_DAYS: "30"
+    #         AUTHD_JWT_TTL_ACCESS: 10m
+    #         AUTHD_JWT_TTL_REFRESH: 720h
 
-            # Forward auth configuration
-            AUTHD_FORWARDAUTH_DEFAULT_MODE: "302"
+    #         # Forward auth configuration
+    #         AUTHD_FORWARDAUTH_DEFAULT_MODE: "302"
 
-            # Docker integration (for auto-discovery)
-            AUTHD_DOCKER_SOCKET: /var/run/docker.sock
-            AUTHD_DOCKER_WATCH: "true"
+    #         # Docker integration (for auto-discovery)
+    #         AUTHD_DOCKER_SOCKET: /var/run/docker.sock
+    #         AUTHD_DOCKER_WATCH: "true"
 
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock:ro
-        # healthcheck:
-        #     test: ["CMD-SHELL", "timeout 5 sh -c '</dev/tcp/localhost/8080' || exit 1"]
-        #     interval: 15s
-        #     timeout: 5s
-        #     retries: 3
-        #     start_period: 40s
-        labels:
-            - traefik.enable=true
-            - traefik.http.routers.authd.rule=Host(`authd.localhost`)
-            - traefik.http.routers.authd.entrypoints=web
-            - traefik.http.services.authd.loadbalancer.server.port=8080
-        networks:
-            - default
+    #     volumes:
+    #         - /var/run/docker.sock:/var/run/docker.sock:ro
+    #     # healthcheck:
+    #     #     test: ["CMD-SHELL", "timeout 5 sh -c '</dev/tcp/localhost/8080' || exit 1"]
+    #     #     interval: 15s
+    #     #     timeout: 5s
+    #     #     retries: 3
+    #     #     start_period: 40s
+    #     labels:
+    #         - traefik.enable=true
+    #         - traefik.http.routers.authd.rule=Host(`authd.localhost`)
+    #         - traefik.http.routers.authd.entrypoints=web
+    #         - traefik.http.services.authd.loadbalancer.server.port=8080
+    #     networks:
+    #         - default
 
     # php:
     #     image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
@@ -656,102 +679,102 @@ services:
     #     networks:
     #         - default
 
-    caddy:
-        image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
-        container_name: presta9-caddy
-        restart: unless-stopped
-        command: ["sh", "-c", "caddy run --config /Caddyfile --adapter caddyfile"]
-        environment:
-            - ENVIRONMENT=production
-            # PrestaShop Core Config
-            - PS_DOMAIN=forclimb.localhost
-            - PS_FOLDER_ADMIN=${PS_FOLDER_ADMIN:-adminps}
-            - PS_FOLDER_INSTALL=${PS_FOLDER_INSTALL:-install}
-            - PS_COUNTRY=${PS_COUNTRY:-SK}
-            - PS_LANGUAGE=${PS_LANGUAGE:-sk}
-            - PS_INSTALL_AUTO=${PS_INSTALL_AUTO:-0}
-            - PS_DEV_MODE=${PS_DEV_MODE:-0}
-            - PS_ENABLE_SSL=${PS_ENABLE_SSL:-0}
+    # caddy:
+    #     image: ghcr.io/forclimb/prestashop/prestashop-php:presta9
+    #     container_name: presta9-caddy
+    #     restart: unless-stopped
+    #     command: ["sh", "-c", "caddy run --config /Caddyfile --adapter caddyfile"]
+    #     environment:
+    #         - ENVIRONMENT=production
+    #         # PrestaShop Core Config
+    #         - PS_DOMAIN=forclimb.localhost
+    #         - PS_FOLDER_ADMIN=${PS_FOLDER_ADMIN:-adminps}
+    #         - PS_FOLDER_INSTALL=${PS_FOLDER_INSTALL:-install}
+    #         - PS_COUNTRY=${PS_COUNTRY:-SK}
+    #         - PS_LANGUAGE=${PS_LANGUAGE:-sk}
+    #         - PS_INSTALL_AUTO=${PS_INSTALL_AUTO:-0}
+    #         - PS_DEV_MODE=${PS_DEV_MODE:-0}
+    #         - PS_ENABLE_SSL=${PS_ENABLE_SSL:-0}
 
-            # Database Configuration
-            - DB_SERVER=mysql
-            - DB_NAME=${MYSQL_DATABASE:-presta9}
-            - DB_USER=${MYSQL_USER:-root}
-            - DB_PASSWD=${MYSQL_PASSWORD:-root}
-            - DB_PREFIX=${DB_PREFIX:-ps_}
+    #         # Database Configuration
+    #         - DB_SERVER=mysql
+    #         - DB_NAME=${MYSQL_DATABASE:-presta9}
+    #         - DB_USER=${MYSQL_USER:-root}
+    #         - DB_PASSWD=${MYSQL_PASSWORD:-root}
+    #         - DB_PREFIX=${DB_PREFIX:-ps_}
 
-            # Redis Cache Configuration
-            - PS_CACHE_ENABLE=1
-            - PS_CACHING=CacheRedis
-            - REDIS_HOST=redis
-            - REDIS_PORT=6379
-            - REDIS_DATABASE=1
-            - PS_CACHE_REDIS_PERSISTENT=0
-            - PS_CACHE_REDIS_TIMEOUT=2.0
-            - PS_CACHE_REDIS_READ_TIMEOUT=2.0
+    #         # Redis Cache Configuration
+    #         - PS_CACHE_ENABLE=1
+    #         - PS_CACHING=CacheRedis
+    #         - REDIS_HOST=redis
+    #         - REDIS_PORT=6379
+    #         - REDIS_DATABASE=1
+    #         - PS_CACHE_REDIS_PERSISTENT=0
+    #         - PS_CACHE_REDIS_TIMEOUT=2.0
+    #         - PS_CACHE_REDIS_READ_TIMEOUT=2.0
 
-            # PHP Configuration
-            - PHP_MEMORY_LIMIT=512M
-            - PHP_MAX_EXECUTION_TIME=120
-            - PHP_UPLOAD_MAX_FILESIZE=64M
-            - PHP_POST_MAX_SIZE=64M
+    #         # PHP Configuration
+    #         - PHP_MEMORY_LIMIT=512M
+    #         - PHP_MAX_EXECUTION_TIME=120
+    #         - PHP_UPLOAD_MAX_FILESIZE=64M
+    #         - PHP_POST_MAX_SIZE=64M
 
-            # PrestaShop 9 Application Environment Variables (required by index.php)
-            - DEV=1
-            - DISPLAY_ERRORS=1
-            - DISPLAY_STARTUP_ERRORS=1
-            - OPCACHE_DISABLE=0
+    #         # PrestaShop 9 Application Environment Variables (required by index.php)
+    #         - DEV=1
+    #         - DISPLAY_ERRORS=1
+    #         - DISPLAY_STARTUP_ERRORS=1
+    #         - OPCACHE_DISABLE=0
 
-            # PrestaShop 9 Symfony-style database configuration
-            - DATABASE_HOST=mysql
-            - DATABASE_PORT=3306
-            - DATABASE_NAME=${MYSQL_DATABASE:-presta9}
-            - DATABASE_USER=${MYSQL_USER:-root}
-            - DATABASE_PASSWORD=${MYSQL_PASSWORD:-root}
-            - DATABASE_PREFIX=${DB_PREFIX:-ps_}
-            - DATABASE_ENGINE=InnoDB
-        volumes:
-            # Persistent data volumes only (code is in image)
-            #- prestashop-var:/www/var
-            - ./.docker/volumes/presta/var:/www/var
-            #- prestashop-config:/www/app/config
-            #- prestashop-img:/www/img
-            - prestashop-download:/www/download
-            - prestashop-upload:/www/upload
-            # Theme assets cache (compiled CSS/JS)
-            - prestashop-theme-assets:/www/themes/hummingbird/assets
-            # Share uploaded files with nginx for serving
-            - prestashop-img:/www/img:ro
-        labels:
-            # Traefik configuration
-            - traefik.enable=true
-            #- traefik.docker.network=gateway
+    #         # PrestaShop 9 Symfony-style database configuration
+    #         - DATABASE_HOST=mysql
+    #         - DATABASE_PORT=3306
+    #         - DATABASE_NAME=${MYSQL_DATABASE:-presta9}
+    #         - DATABASE_USER=${MYSQL_USER:-root}
+    #         - DATABASE_PASSWORD=${MYSQL_PASSWORD:-root}
+    #         - DATABASE_PREFIX=${DB_PREFIX:-ps_}
+    #         - DATABASE_ENGINE=InnoDB
+    #     volumes:
+    #         # Persistent data volumes only (code is in image)
+    #         #- prestashop-var:/www/var
+    #         - ./.docker/volumes/presta/var:/www/var
+    #         #- prestashop-config:/www/app/config
+    #         #- prestashop-img:/www/img
+    #         - prestashop-download:/www/download
+    #         - prestashop-upload:/www/upload
+    #         # Theme assets cache (compiled CSS/JS)
+    #         - prestashop-theme-assets:/www/themes/hummingbird/assets
+    #         # Share uploaded files with nginx for serving
+    #         - prestashop-img:/www/img:ro
+    #     labels:
+    #         # Traefik configuration
+    #         - traefik.enable=true
+    #         #- traefik.docker.network=gateway
 
-            # HTTP Router
-            - traefik.http.routers.presta9-caddy.rule=Host(`forclimb.localhost`)
-            - traefik.http.routers.presta9-caddy.entrypoints=web
-            - traefik.http.routers.presta9-caddy.service=presta9-caddy
+    #         # HTTP Router
+    #         - traefik.http.routers.presta9-caddy.rule=Host(`forclimb.localhost`)
+    #         - traefik.http.routers.presta9-caddy.entrypoints=web
+    #         - traefik.http.routers.presta9-caddy.service=presta9-caddy
 
-            # Service configuration
-            - traefik.http.services.presta9-caddy.loadbalancer.server.port=80
-        networks:
-            - default
+    #         # Service configuration
+    #         - traefik.http.services.presta9-caddy.loadbalancer.server.port=80
+    #     networks:
+    #         - default
 
 networks:
     default:
         name: gateway
         external: true
 
-volumes:
-    prestashop-var:
-        driver: local
-    prestashop-config:
-        driver: local
-    prestashop-img:
-        driver: local
-    prestashop-download:
-        driver: local
-    prestashop-upload:
-        driver: local
-    prestashop-theme-assets:
-        driver: local
+# volumes:
+#     prestashop-var:
+#         driver: local
+#     prestashop-config:
+#         driver: local
+#     prestashop-img:
+#         driver: local
+#     prestashop-download:
+#         driver: local
+#     prestashop-upload:
+#         driver: local
+#     prestashop-theme-assets:
+#         driver: local
